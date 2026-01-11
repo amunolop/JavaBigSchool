@@ -50,30 +50,39 @@ jobs:
             // Filter PRs without reviewers or not approved
             const prsNeedingAttention = [];
             
-            for (const pr of pullRequests) {
-              const { data: reviews } = await github.rest.pulls.listReviews({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number
-              });
+            // Process PRs in parallel for better performance
+            const prProcessingPromises = pullRequests.map(async (pr) => {
+              // Fetch all data for this PR in parallel
+              const [reviewsResponse, reviewRequestsResponse, commentsResponse, reviewCommentsResponse] = await Promise.all([
+                github.rest.pulls.listReviews({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 100
+                }),
+                github.rest.pulls.listRequestedReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number
+                }),
+                github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  per_page: 100
+                }),
+                github.rest.pulls.listReviewComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  per_page: 100
+                })
+              ]);
               
-              const { data: reviewRequests } = await github.rest.pulls.listRequestedReviewers({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number
-              });
-              
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number
-              });
-              
-              const { data: reviewComments } = await github.rest.pulls.listReviewComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number
-              });
+              const reviews = reviewsResponse.data;
+              const reviewRequests = reviewRequestsResponse.data;
+              const comments = commentsResponse.data;
+              const reviewComments = reviewCommentsResponse.data;
               
               const approvedReviews = reviews.filter(r => r.state === 'APPROVED');
               const hasReviewers = reviewRequests.users.length > 0 || reviewRequests.teams.length > 0;
@@ -84,7 +93,7 @@ jobs:
                 // Collect reviewer activity
                 const reviewerActivity = [];
                 
-                // Group reviews by user
+                // Group reviews by user and sort by submitted date
                 const reviewsByUser = {};
                 for (const review of reviews) {
                   const user = review.user.login;
@@ -94,22 +103,26 @@ jobs:
                   reviewsByUser[user].push(review);
                 }
                 
-                // Summarize reviewer activity
+                // Summarize reviewer activity using most recent review state
                 for (const [user, userReviews] of Object.entries(reviewsByUser)) {
-                  const states = userReviews.map(r => r.state);
-                  const lastReview = userReviews[userReviews.length - 1];
+                  // Sort reviews by submitted_at date, most recent first
+                  userReviews.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+                  const mostRecentReview = userReviews[0];
                   
                   let activity = `**${user}**:`;
-                  if (states.includes('APPROVED')) {
+                  if (mostRecentReview.state === 'APPROVED') {
                     activity += ' ✅ Approved';
-                  } else if (states.includes('CHANGES_REQUESTED')) {
+                  } else if (mostRecentReview.state === 'CHANGES_REQUESTED') {
                     activity += ' 🔄 Requested changes';
-                  } else if (states.includes('COMMENTED')) {
+                  } else if (mostRecentReview.state === 'COMMENTED') {
                     activity += ' 💬 Commented';
+                  } else if (mostRecentReview.state === 'DISMISSED') {
+                    activity += ' 🚫 Review dismissed';
                   }
                   
-                  if (lastReview.body) {
-                    activity += ` - "${lastReview.body.substring(0, 100)}${lastReview.body.length > 100 ? '...' : ''}"`;
+                  if (mostRecentReview.body && mostRecentReview.body.trim()) {
+                    const bodyText = mostRecentReview.body.trim();
+                    activity += ` - "${bodyText.substring(0, 100)}${bodyText.length > 100 ? '...' : ''}"`;
                   }
                   
                   reviewerActivity.push(activity);
@@ -165,7 +178,12 @@ jobs:
                   labels: pr.labels.map(l => l.name)
                 });
               }
-            }
+              
+              return null; // Return for Promise.all
+            });
+            
+            // Wait for all PR processing to complete
+            await Promise.all(prProcessingPromises);
             
             console.log(`Found ${prsNeedingAttention.length} PRs needing attention`);
             
