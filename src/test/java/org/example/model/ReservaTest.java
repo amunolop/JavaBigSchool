@@ -13,8 +13,8 @@ class ReservaTest {
         LocalDate entrada = LocalDate.of(2026, 1, 15);
         LocalDate salida = LocalDate.of(2026, 1, 16);
         Reserva reserva = new Reserva(room, entrada, salida);
-        assertEquals(50.0, reserva.getPrecioTotal(), 0.01);
-        assertEquals(1, reserva.getNumeroNoches());
+        assertEquals(50.0, reserva.getTotalPrice(), 0.01);
+        assertEquals(1, reserva.getNumberOfNights());
     }
 
     @Test
@@ -23,8 +23,8 @@ class ReservaTest {
         LocalDate entrada = LocalDate.of(2026, 1, 15);
         LocalDate salida = LocalDate.of(2026, 1, 17);
         Reserva reserva = new Reserva(room, entrada, salida);
-        assertEquals(80.0, reserva.getPrecioTotal(), 0.01);
-        assertEquals(2, reserva.getNumeroNoches());
+        assertEquals(80.0, reserva.getTotalPrice(), 0.01);
+        assertEquals(2, reserva.getNumberOfNights());
     }
 
     @Test
@@ -33,8 +33,8 @@ class ReservaTest {
         LocalDate entrada = LocalDate.of(2026, 1, 15);
         LocalDate salida = LocalDate.of(2026, 1, 18);
         Reserva reserva = new Reserva(room, entrada, salida);
-        assertEquals(200.0, reserva.getPrecioTotal(), 0.01);
-        assertEquals(3, reserva.getNumeroNoches());
+        assertEquals(200.0, reserva.getTotalPrice(), 0.01);
+        assertEquals(3, reserva.getNumberOfNights());
     }
 
     @Test
@@ -43,8 +43,8 @@ class ReservaTest {
         LocalDate entrada = LocalDate.of(2026, 1, 15);
         LocalDate salida = LocalDate.of(2026, 1, 19);
         Reserva reserva = new Reserva(room, entrada, salida);
-        assertEquals(200.0, reserva.getPrecioTotal(), 0.01);
-        assertEquals(4, reserva.getNumeroNoches());
+        assertEquals(200.0, reserva.getTotalPrice(), 0.01);
+        assertEquals(4, reserva.getNumberOfNights());
     }
 
     @Test
@@ -53,8 +53,8 @@ class ReservaTest {
         LocalDate entrada = LocalDate.of(2026, 1, 15);
         LocalDate salida = LocalDate.of(2026, 1, 20);
         Reserva reserva = new Reserva(room, entrada, salida);
-        assertEquals(300.0, reserva.getPrecioTotal(), 0.01);
-        assertEquals(5, reserva.getNumeroNoches());
+        assertEquals(300.0, reserva.getTotalPrice(), 0.01);
+        assertEquals(5, reserva.getNumberOfNights());
     }
 
     @Test

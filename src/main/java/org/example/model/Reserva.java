@@ -5,57 +5,57 @@ import java.time.temporal.ChronoUnit;
 
 public class Reserva {
     private Room room;
-    private LocalDate fechaEntrada;
-    private LocalDate fechaSalida;
-    private double precioTotal;
+    private LocalDate checkInDate;
+    private LocalDate checkOutDate;
+    private double totalPrice;
 
-    public Reserva(Room room, LocalDate fechaEntrada, LocalDate fechaSalida) {
-        if (fechaSalida.isBefore(fechaEntrada) || fechaSalida.isEqual(fechaEntrada)) {
+    public Reserva(Room room, LocalDate checkInDate, LocalDate checkOutDate) {
+        if (checkOutDate.isBefore(checkInDate) || checkOutDate.isEqual(checkInDate)) {
             throw new IllegalArgumentException("La fecha de salida debe ser posterior a la fecha de entrada");
         }
         this.room = room;
-        this.fechaEntrada = fechaEntrada;
-        this.fechaSalida = fechaSalida;
-        this.precioTotal = calcularPrecio();
+        this.checkInDate = checkInDate;
+        this.checkOutDate = checkOutDate;
+        this.totalPrice = calculatePrice();
     }
 
-    private double calcularPrecio() {
-        long noches = ChronoUnit.DAYS.between(fechaEntrada, fechaSalida);
-        double precioBase = noches * room.getPrecioPorNoche();
+    private double calculatePrice() {
+        long nights = ChronoUnit.DAYS.between(checkInDate, checkOutDate);
+        double basePrice = nights * room.getPricePerNight();
 
         // Oferta 2x1: por cada 2 noches, pagas solo 1
-        if (noches >= 2) {
-            long nochesGratis = noches / 2;
-            precioBase -= nochesGratis * room.getPrecioPorNoche();
+        if (nights >= 2) {
+            long freeNights = nights / 2;
+            basePrice -= freeNights * room.getPricePerNight();
         }
 
-        return precioBase;
+        return basePrice;
     }
 
-    public Room getHabitacion() {
+    public Room getRoom() {
         return room;
     }
 
-    public LocalDate getFechaEntrada() {
-        return fechaEntrada;
+    public LocalDate getCheckInDate() {
+        return checkInDate;
     }
 
-    public LocalDate getFechaSalida() {
-        return fechaSalida;
+    public LocalDate getCheckOutDate() {
+        return checkOutDate;
     }
 
-    public double getPrecioTotal() {
-        return precioTotal;
+    public double getTotalPrice() {
+        return totalPrice;
     }
 
-    public long getNumeroNoches() {
-        return ChronoUnit.DAYS.between(fechaEntrada, fechaSalida);
+    public long getNumberOfNights() {
+        return ChronoUnit.DAYS.between(checkInDate, checkOutDate);
     }
 
     @Override
     public String toString() {
         return String.format("Reserva - Habitación %d - %s a %s (%d noches) - Total: %.2f€",
-                room.getNumero(), fechaEntrada, fechaSalida, getNumeroNoches(), precioTotal);
+                room.getNumber(), checkInDate, checkOutDate, getNumberOfNights(), totalPrice);
     }
 }
 
