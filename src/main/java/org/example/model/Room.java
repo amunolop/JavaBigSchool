@@ -1,42 +1,42 @@
 package org.example.model;
 
 public class Room {
-    private int numero;
-    private String tipo;
-    private double precioPorNoche;
-    private boolean disponible;
+    private int number;
+    private String type;
+    private double pricePerNight;
+    private boolean available;
 
-    public Room(int numero, String tipo, double precioPorNoche) {
-        this.numero = numero;
-        this.tipo = tipo;
-        this.precioPorNoche = precioPorNoche;
-        this.disponible = true;
+    public Room(int number, String type, double pricePerNight) {
+        this.number = number;
+        this.type = type;
+        this.pricePerNight = pricePerNight;
+        this.available = true;
     }
 
-    public int getNumero() {
-        return numero;
+    public int getNumber() {
+        return number;
     }
 
-    public String getTipo() {
-        return tipo;
+    public String getType() {
+        return type;
     }
 
-    public double getPrecioPorNoche() {
-        return precioPorNoche;
+    public double getPricePerNight() {
+        return pricePerNight;
     }
 
-    public boolean isDisponible() {
-        return disponible;
+    public boolean isAvailable() {
+        return available;
     }
 
-    public void setDisponible(boolean disponible) {
-        this.disponible = disponible;
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 
     @Override
     public String toString() {
         return String.format("Habitación %d - %s - %.2f€/noche - %s",
-                numero, tipo, precioPorNoche, disponible ? "Disponible" : "Ocupada");
+                number, type, pricePerNight, available ? "Disponible" : "Ocupada");
     }
 }
 

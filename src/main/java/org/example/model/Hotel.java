@@ -5,35 +5,35 @@ import java.util.List;
 import java.util.Optional;
 
 public class Hotel {
-    private final List<Room> habitaciones;
-    private final List<Reserva> reservas;
+    private final List<Room> rooms;
+    private final List<Reserva> reservations;
 
     public Hotel() {
-        this.habitaciones = new ArrayList<>();
-        this.reservas = new ArrayList<>();
+        this.rooms = new ArrayList<>();
+        this.reservations = new ArrayList<>();
     }
 
-    public void agregarHabitacion(Room room) {
-        habitaciones.add(room);
+    public void addRoom(Room room) {
+        rooms.add(room);
     }
 
-    public List<Room> getHabitaciones() {
-        return new ArrayList<>(habitaciones);
+    public List<Room> getRooms() {
+        return new ArrayList<>(rooms);
     }
 
-    public Optional<Room> buscarHabitacion(int numero) {
-        return habitaciones.stream()
-                .filter(h -> h.getNumero() == numero)
+    public Optional<Room> findRoom(int number) {
+        return rooms.stream()
+                .filter(h -> h.getNumber() == number)
                 .findFirst();
     }
 
-    public void crearReserva(Reserva reserva) {
-        reservas.add(reserva);
-        reserva.getHabitacion().setDisponible(false);
+    public void createReservation(Reserva reservation) {
+        reservations.add(reservation);
+        reservation.getRoom().setAvailable(false);
     }
 
-    public List<Reserva> getReservas() {
-        return new ArrayList<>(reservas);
+    public List<Reserva> getReservations() {
+        return new ArrayList<>(reservations);
     }
 }
 
