@@ -50,140 +50,162 @@ jobs:
             // Filter PRs without reviewers or not approved
             const prsNeedingAttention = [];
             
-            // Process PRs in parallel for better performance
-            const prProcessingPromises = pullRequests.map(async (pr) => {
-              // Fetch all data for this PR in parallel
-              const [reviewsResponse, reviewRequestsResponse, commentsResponse, reviewCommentsResponse] = await Promise.all([
-                github.rest.pulls.listReviews({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: pr.number,
-                  per_page: 100
-                }),
-                github.rest.pulls.listRequestedReviewers({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: pr.number
-                }),
-                github.rest.issues.listComments({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pr.number,
-                  per_page: 100
-                }),
-                github.rest.pulls.listReviewComments({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: pr.number,
-                  per_page: 100
-                })
-              ]);
+            // Helper function to fetch all pages of a paginated resource
+            async function fetchAllPages(fetchFunction, params) {
+              const allData = [];
+              let page = 1;
+              let hasMore = true;
               
-              const reviews = reviewsResponse.data;
-              const reviewRequests = reviewRequestsResponse.data;
-              const comments = commentsResponse.data;
-              const reviewComments = reviewCommentsResponse.data;
-              
-              const approvedReviews = reviews.filter(r => r.state === 'APPROVED');
-              const hasReviewers = reviewRequests.users.length > 0 || reviewRequests.teams.length > 0;
-              const isApproved = approvedReviews.length > 0;
-              
-              // Include PR if it has no reviewers OR is not approved
-              if (!hasReviewers || !isApproved) {
-                // Collect reviewer activity
-                const reviewerActivity = [];
-                
-                // Group reviews by user and sort by submitted date
-                const reviewsByUser = {};
-                for (const review of reviews) {
-                  const user = review.user.login;
-                  if (!reviewsByUser[user]) {
-                    reviewsByUser[user] = [];
-                  }
-                  reviewsByUser[user].push(review);
-                }
-                
-                // Summarize reviewer activity using most recent review state
-                for (const [user, userReviews] of Object.entries(reviewsByUser)) {
-                  // Sort reviews by submitted_at date, most recent first
-                  userReviews.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
-                  const mostRecentReview = userReviews[0];
-                  
-                  let activity = `**${user}**:`;
-                  if (mostRecentReview.state === 'APPROVED') {
-                    activity += ' ✅ Approved';
-                  } else if (mostRecentReview.state === 'CHANGES_REQUESTED') {
-                    activity += ' 🔄 Requested changes';
-                  } else if (mostRecentReview.state === 'COMMENTED') {
-                    activity += ' 💬 Commented';
-                  } else if (mostRecentReview.state === 'DISMISSED') {
-                    activity += ' 🚫 Review dismissed';
-                  }
-                  
-                  if (mostRecentReview.body && mostRecentReview.body.trim()) {
-                    const bodyText = mostRecentReview.body.trim();
-                    activity += ` - "${bodyText.substring(0, 100)}${bodyText.length > 100 ? '...' : ''}"`;
-                  }
-                  
-                  reviewerActivity.push(activity);
-                }
-                
-                // Add comments activity
-                const commentsByUser = {};
-                for (const comment of comments) {
-                  const user = comment.user.login;
-                  if (user !== pr.user.login) { // Exclude PR author
-                    if (!commentsByUser[user]) {
-                      commentsByUser[user] = 0;
-                    }
-                    commentsByUser[user]++;
-                  }
-                }
-                
-                for (const [user, count] of Object.entries(commentsByUser)) {
-                  if (!reviewsByUser[user]) {
-                    reviewerActivity.push(`**${user}**: 💬 ${count} comment(s)`);
-                  }
-                }
-                
-                // Add review comments activity
-                const reviewCommentsByUser = {};
-                for (const comment of reviewComments) {
-                  const user = comment.user.login;
-                  if (user !== pr.user.login) {
-                    if (!reviewCommentsByUser[user]) {
-                      reviewCommentsByUser[user] = 0;
-                    }
-                    reviewCommentsByUser[user]++;
-                  }
-                }
-                
-                for (const [user, count] of Object.entries(reviewCommentsByUser)) {
-                  if (!reviewsByUser[user] && !commentsByUser[user]) {
-                    reviewerActivity.push(`**${user}**: 💬 ${count} review comment(s)`);
-                  }
-                }
-                
-                prsNeedingAttention.push({
-                  number: pr.number,
-                  title: pr.title,
-                  author: pr.user.login,
-                  url: pr.html_url,
-                  created: pr.created_at,
-                  updated: pr.updated_at,
-                  hasReviewers: hasReviewers,
-                  isApproved: isApproved,
-                  reviewerActivity: reviewerActivity,
-                  body: pr.body || 'No description provided',
-                  labels: pr.labels.map(l => l.name)
+              while (hasMore) {
+                const response = await fetchFunction({
+                  ...params,
+                  per_page: 100,
+                  page: page
                 });
+                allData.push(...response.data);
+                hasMore = response.data.length === 100;
+                page++;
               }
               
-              return null; // Return for Promise.all
-            });
+              return allData;
+            }
             
-            // Wait for all PR processing to complete
-            await Promise.all(prProcessingPromises);
+            // Process PRs in batches to avoid rate limiting
+            const batchSize = 10; // Process 10 PRs at a time
+            
+            for (let i = 0; i < pullRequests.length; i += batchSize) {
+              const batch = pullRequests.slice(i, i + batchSize);
+              
+              const batchPromises = batch.map(async (pr) => {
+                try {
+                  // Fetch all data for this PR in parallel with full pagination
+                  const [reviews, reviewRequests, comments, reviewComments] = await Promise.all([
+                    fetchAllPages(github.rest.pulls.listReviews, {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pr.number
+                    }),
+                    github.rest.pulls.listRequestedReviewers({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pr.number
+                    }).then(r => r.data),
+                    fetchAllPages(github.rest.issues.listComments, {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: pr.number
+                    }),
+                    fetchAllPages(github.rest.pulls.listReviewComments, {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pr.number
+                    })
+                  ]);
+                  
+                  const approvedReviews = reviews.filter(r => r.state === 'APPROVED');
+                  const hasReviewers = reviewRequests.users.length > 0 || reviewRequests.teams.length > 0;
+                  const isApproved = approvedReviews.length > 0;
+                  
+                  // Include PR if it has no reviewers OR is not approved
+                  if (!hasReviewers || !isApproved) {
+                    // Collect reviewer activity
+                    const reviewerActivity = [];
+                    
+                    // Group reviews by user and sort by submitted date
+                    const reviewsByUser = {};
+                    for (const review of reviews) {
+                      const user = review.user.login;
+                      if (!reviewsByUser[user]) {
+                        reviewsByUser[user] = [];
+                      }
+                      reviewsByUser[user].push(review);
+                    }
+                    
+                    // Summarize reviewer activity using most recent review state
+                    for (const [user, userReviews] of Object.entries(reviewsByUser)) {
+                      // Sort reviews by submitted_at date, most recent first
+                      userReviews.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+                      const mostRecentReview = userReviews[0];
+                      
+                      let activity = `**${user}**:`;
+                      if (mostRecentReview.state === 'APPROVED') {
+                        activity += ' ✅ Approved';
+                      } else if (mostRecentReview.state === 'CHANGES_REQUESTED') {
+                        activity += ' 🔄 Requested changes';
+                      } else if (mostRecentReview.state === 'COMMENTED') {
+                        activity += ' 💬 Commented';
+                      } else if (mostRecentReview.state === 'DISMISSED') {
+                        activity += ' 🚫 Review dismissed';
+                      }
+                      
+                      if (mostRecentReview.body && mostRecentReview.body.trim()) {
+                        const bodyText = mostRecentReview.body.trim();
+                        activity += ` - "${bodyText.substring(0, 100)}${bodyText.length > 100 ? '...' : ''}"`;
+                      }
+                      
+                      reviewerActivity.push(activity);
+                    }
+                    
+                    // Add comments activity
+                    const commentsByUser = {};
+                    for (const comment of comments) {
+                      const user = comment.user.login;
+                      if (user !== pr.user.login) { // Exclude PR author
+                        if (!commentsByUser[user]) {
+                          commentsByUser[user] = 0;
+                        }
+                        commentsByUser[user]++;
+                      }
+                    }
+                    
+                    for (const [user, count] of Object.entries(commentsByUser)) {
+                      if (!reviewsByUser[user]) {
+                        reviewerActivity.push(`**${user}**: 💬 ${count} comment(s)`);
+                      }
+                    }
+                    
+                    // Add review comments activity
+                    const reviewCommentsByUser = {};
+                    for (const comment of reviewComments) {
+                      const user = comment.user.login;
+                      if (user !== pr.user.login) {
+                        if (!reviewCommentsByUser[user]) {
+                          reviewCommentsByUser[user] = 0;
+                        }
+                        reviewCommentsByUser[user]++;
+                      }
+                    }
+                    
+                    for (const [user, count] of Object.entries(reviewCommentsByUser)) {
+                      if (!reviewsByUser[user] && !commentsByUser[user]) {
+                        reviewerActivity.push(`**${user}**: 💬 ${count} review comment(s)`);
+                      }
+                    }
+                    
+                    prsNeedingAttention.push({
+                      number: pr.number,
+                      title: pr.title,
+                      author: pr.user.login,
+                      url: pr.html_url,
+                      created: pr.created_at,
+                      updated: pr.updated_at,
+                      hasReviewers: hasReviewers,
+                      isApproved: isApproved,
+                      reviewerActivity: reviewerActivity,
+                      body: pr.body || 'No description provided',
+                      labels: pr.labels.map(l => l.name)
+                    });
+                  }
+                } catch (error) {
+                  console.error(`Error processing PR #${pr.number}: ${error.message}`);
+                }
+                
+                return null;
+              });
+              
+              // Wait for this batch to complete
+              await Promise.all(batchPromises);
+            }
             
             console.log(`Found ${prsNeedingAttention.length} PRs needing attention`);
             

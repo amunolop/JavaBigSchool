@@ -66,8 +66,8 @@ El reporte se publica en múltiples lugares:
 ### [#42 - Add new feature](https://github.com/owner/repo/pull/42)
 
 - **Author:** @johndoe
-- **Created:** 1/10/2026
-- **Last Updated:** 1/11/2026
+- **Created:** 2026-01-10
+- **Last Updated:** 2026-01-11
 - **Status:** ⚠️ No reviewers assigned 🔍 Not approved
 - **Labels:** feature, needs-review
 
@@ -81,8 +81,8 @@ This PR adds a new feature to improve user experience...
 ### [#38 - Fix bug in login](https://github.com/owner/repo/pull/38)
 
 - **Author:** @janedoe
-- **Created:** 1/8/2026
-- **Last Updated:** 1/10/2026
+- **Created:** 2026-01-08
+- **Last Updated:** 2026-01-10
 - **Status:** 🔍 Not approved
 - **Labels:** bug, high-priority
 
