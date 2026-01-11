@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class Hotel {
-    private final List<Habitacion> habitaciones;
+    private final List<Room> habitaciones;
     private final List<Reserva> reservas;
 
     public Hotel() {
@@ -13,15 +13,15 @@ public class Hotel {
         this.reservas = new ArrayList<>();
     }
 
-    public void agregarHabitacion(Habitacion habitacion) {
-        habitaciones.add(habitacion);
+    public void agregarHabitacion(Room room) {
+        habitaciones.add(room);
     }
 
-    public List<Habitacion> getHabitaciones() {
+    public List<Room> getHabitaciones() {
         return new ArrayList<>(habitaciones);
     }
 
-    public Optional<Habitacion> buscarHabitacion(int numero) {
+    public Optional<Room> buscarHabitacion(int numero) {
         return habitaciones.stream()
                 .filter(h -> h.getNumero() == numero)
                 .findFirst();
