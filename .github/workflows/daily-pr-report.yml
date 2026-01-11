@@ -26,6 +26,10 @@ jobs:
           script: |
             const fs = require('fs');
             
+            // Constants
+            const REVIEW_COMMENT_MAX_LENGTH = 100;
+            const PR_SUMMARY_MAX_LENGTH = 300;
+            
             // Get all open pull requests with pagination
             const pullRequests = [];
             let page = 1;
@@ -140,7 +144,7 @@ jobs:
                       
                       if (mostRecentReview.body && mostRecentReview.body.trim()) {
                         const bodyText = mostRecentReview.body.trim();
-                        activity += ` - "${bodyText.substring(0, 100)}${bodyText.length > 100 ? '...' : ''}"`;
+                        activity += ` - "${bodyText.substring(0, REVIEW_COMMENT_MAX_LENGTH)}${bodyText.length > REVIEW_COMMENT_MAX_LENGTH ? '...' : ''}"`;
                       }
                       
                       reviewerActivity.push(activity);
@@ -199,8 +203,6 @@ jobs:
                 } catch (error) {
                   console.error(`Error processing PR #${pr.number}: ${error.message}`);
                 }
-                
-                return null;
               });
               
               // Wait for this batch to complete
@@ -227,15 +229,20 @@ jobs:
                 report += `- **Author:** @${pr.author}\n`;
                 report += `- **Created:** ${new Date(pr.created).toISOString().split('T')[0]}\n`;
                 report += `- **Last Updated:** ${new Date(pr.updated).toISOString().split('T')[0]}\n`;
-                report += `- **Status:** ${!pr.hasReviewers ? '⚠️ No reviewers assigned' : ''} ${!pr.isApproved ? '🔍 Not approved' : ''}\n`;
+                
+                // Build status array to avoid awkward spacing
+                const statusItems = [];
+                if (!pr.hasReviewers) statusItems.push('⚠️ No reviewers assigned');
+                if (!pr.isApproved) statusItems.push('🔍 Not approved');
+                report += `- **Status:** ${statusItems.join(' | ')}\n`;
                 
                 if (pr.labels.length > 0) {
                   report += `- **Labels:** ${pr.labels.join(', ')}\n`;
                 }
                 
                 report += '\n**Summary:**\n';
-                const summary = pr.body.substring(0, 300);
-                report += `${summary}${pr.body.length > 300 ? '...' : ''}\n\n`;
+                const summary = pr.body.substring(0, PR_SUMMARY_MAX_LENGTH);
+                report += `${summary}${pr.body.length > PR_SUMMARY_MAX_LENGTH ? '...' : ''}\n\n`;
                 
                 if (pr.reviewerActivity.length > 0) {
                   report += '**Reviewer Activity:**\n';
