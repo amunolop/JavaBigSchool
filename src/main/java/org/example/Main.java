@@ -1,12 +1,13 @@
 package org.example;
 
-import org.example.model.Habitacion;
 import org.example.model.Hotel;
 import org.example.model.Reserva;
+import org.example.model.Room;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
 import java.util.Scanner;
 
 public class Main {
@@ -16,31 +17,31 @@ public class Main {
 
     public static void main(String[] args) {
         // Datos iniciales
-        hotel.agregarHabitacion(new Habitacion(101, "Individual", 50.0));
-        hotel.agregarHabitacion(new Habitacion(102, "Doble", 80.0));
-        hotel.agregarHabitacion(new Habitacion(103, "Suite", 150.0));
-        hotel.agregarHabitacion(new Habitacion(104, "Suite Especial", 200.0));
+        hotel.agregarHabitacion(new Room(101, "Individual", 50.0));
+        hotel.agregarHabitacion(new Room(102, "Doble", 80.0));
+        hotel.agregarHabitacion(new Room(103, "Suite", 150.0));
+        hotel.agregarHabitacion(new Room(104, "Suite Especial", 200.0));
 
         boolean salir = false;
         while (!salir) {
-            mostrarMenu();
-            int opcion = leerOpcion();
+            showMenu();
+            int opcion = readOption();
 
             switch (opcion) {
                 case 1:
-                    listarHabitaciones();
+                    listRooms();
                     break;
                 case 2:
-                    crearHabitacion();
+                    createRoom();
                     break;
                 case 3:
-                    calcularPrecioReserva();
+                    calculateReservationPrice();
                     break;
                 case 4:
-                    crearReserva();
+                    createReservation();
                     break;
                 case 5:
-                    listarReservas();
+                    listReservations();
                     break;
                 case 0:
                     salir = true;
@@ -54,7 +55,7 @@ public class Main {
         scanner.close();
     }
 
-    private static void mostrarMenu() {
+    private static void showMenu() {
         System.out.println("=== SISTEMA DE RESERVAS DE HOTEL ===");
         System.out.println("1. Listar habitaciones");
         System.out.println("2. Crear habitación");
@@ -65,7 +66,7 @@ public class Main {
         System.out.print("Seleccione una opción: ");
     }
 
-    private static int leerOpcion() {
+    private static int readOption() {
         try {
             return Integer.parseInt(scanner.nextLine());
         } catch (NumberFormatException e) {
@@ -73,7 +74,7 @@ public class Main {
         }
     }
 
-    private static void listarHabitaciones() {
+    private static void listRooms() {
         System.out.println("\n--- HABITACIONES DISPONIBLES ---");
         if (hotel.getHabitaciones().isEmpty()) {
             System.out.println("No hay habitaciones registradas");
@@ -82,7 +83,7 @@ public class Main {
         }
     }
 
-    private static void crearHabitacion() {
+    private static void createRoom() {
         System.out.println("\n--- CREAR HABITACIÓN ---");
         try {
             System.out.print("Número de habitación: ");
@@ -94,21 +95,21 @@ public class Main {
             System.out.print("Precio por noche: ");
             double precio = Double.parseDouble(scanner.nextLine());
 
-            Habitacion habitacion = new Habitacion(numero, tipo, precio);
-            hotel.agregarHabitacion(habitacion);
+            Room room = new Room(numero, tipo, precio);
+            hotel.agregarHabitacion(room);
             System.out.println("✓ Habitación creada exitosamente");
         } catch (NumberFormatException e) {
             System.out.println("✗ Error: Valores numéricos inválidos");
         }
     }
 
-    private static void calcularPrecioReserva() {
+    private static void calculateReservationPrice() {
         System.out.println("\n--- CALCULAR PRECIO DE RESERVA ---");
         try {
             System.out.print("Número de habitación: ");
             int numero = Integer.parseInt(scanner.nextLine());
 
-            Habitacion habitacion = hotel.buscarHabitacion(numero)
+            Room room = hotel.buscarHabitacion(numero)
                     .orElseThrow(() -> new IllegalArgumentException("Habitación no encontrada"));
 
             System.out.print("Fecha entrada (dd/MM/yyyy): ");
@@ -117,7 +118,7 @@ public class Main {
             System.out.print("Fecha salida (dd/MM/yyyy): ");
             LocalDate fechaSalida = LocalDate.parse(scanner.nextLine(), dateFormatter);
 
-            Reserva reservaTemp = new Reserva(habitacion, fechaEntrada, fechaSalida);
+            Reserva reservaTemp = new Reserva(room, fechaEntrada, fechaSalida);
             System.out.println("\n--- RESUMEN ---");
             System.out.println(reservaTemp);
             System.out.println("(Oferta 2x1 aplicada: cada 2 noches, pagas 1)");
@@ -130,16 +131,16 @@ public class Main {
         }
     }
 
-    private static void crearReserva() {
+    private static void createReservation() {
         System.out.println("\n--- CREAR RESERVA ---");
         try {
             System.out.print("Número de habitación: ");
             int numero = Integer.parseInt(scanner.nextLine());
 
-            Habitacion habitacion = hotel.buscarHabitacion(numero)
+            Room room = hotel.buscarHabitacion(numero)
                     .orElseThrow(() -> new IllegalArgumentException("Habitación no encontrada"));
 
-            if (!habitacion.isDisponible()) {
+            if (!room.isDisponible()) {
                 throw new IllegalArgumentException("La habitación no está disponible");
             }
 
@@ -149,7 +150,7 @@ public class Main {
             System.out.print("Fecha salida (dd/MM/yyyy): ");
             LocalDate fechaSalida = LocalDate.parse(scanner.nextLine(), dateFormatter);
 
-            Reserva reserva = new Reserva(habitacion, fechaEntrada, fechaSalida);
+            Reserva reserva = new Reserva(room, fechaEntrada, fechaSalida);
             hotel.crearReserva(reserva);
 
             System.out.println("\n✓ Reserva creada exitosamente");
@@ -163,12 +164,21 @@ public class Main {
         }
     }
 
-    private static void listarReservas() {
+    private static void listReservations() {
         System.out.println("\n--- RESERVAS ACTIVAS ---");
         if (hotel.getReservas().isEmpty()) {
             System.out.println("No hay reservas registradas");
         } else {
             hotel.getReservas().forEach(System.out::println);
+        }
+    }
+
+    public void printUpperCase(String text) {
+        if (Objects.isNull(text)) {
+            System.out.println("empty");
+        }
+        if (text != null) {
+            System.out.println(text.toUpperCase());
         }
     }
 }

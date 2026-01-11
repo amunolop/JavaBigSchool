@@ -1,12 +1,12 @@
 package org.example.model;
 
-public class Habitacion {
+public class Room {
     private int numero;
     private String tipo;
     private double precioPorNoche;
     private boolean disponible;
 
-    public Habitacion(int numero, String tipo, double precioPorNoche) {
+    public Room(int numero, String tipo, double precioPorNoche) {
         this.numero = numero;
         this.tipo = tipo;
         this.precioPorNoche = precioPorNoche;
