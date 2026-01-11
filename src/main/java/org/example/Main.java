@@ -19,6 +19,7 @@ public class Main {
         hotel.agregarHabitacion(new Habitacion(101, "Individual", 50.0));
         hotel.agregarHabitacion(new Habitacion(102, "Doble", 80.0));
         hotel.agregarHabitacion(new Habitacion(103, "Suite", 150.0));
+        hotel.agregarHabitacion(new Habitacion(104, "Suite Especial", 200.0));
 
         boolean salir = false;
         while (!salir) {
