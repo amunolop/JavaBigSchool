@@ -26,13 +26,24 @@ jobs:
           script: |
             const fs = require('fs');
             
-            // Get all open pull requests
-            const { data: pullRequests } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              per_page: 100
-            });
+            // Get all open pull requests with pagination
+            const pullRequests = [];
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100,
+                page: page
+              });
+              
+              pullRequests.push(...prs);
+              hasMore = prs.length === 100;
+              page++;
+            }
             
             console.log(`Found ${pullRequests.length} open pull requests`);
             
@@ -174,8 +185,8 @@ jobs:
               for (const pr of prsNeedingAttention) {
                 report += `### [#${pr.number} - ${pr.title}](${pr.url})\n\n`;
                 report += `- **Author:** @${pr.author}\n`;
-                report += `- **Created:** ${new Date(pr.created).toLocaleDateString()}\n`;
-                report += `- **Last Updated:** ${new Date(pr.updated).toLocaleDateString()}\n`;
+                report += `- **Created:** ${new Date(pr.created).toISOString().split('T')[0]}\n`;
+                report += `- **Last Updated:** ${new Date(pr.updated).toISOString().split('T')[0]}\n`;
                 report += `- **Status:** ${!pr.hasReviewers ? '⚠️ No reviewers assigned' : ''} ${!pr.isApproved ? '🔍 Not approved' : ''}\n`;
                 
                 if (pr.labels.length > 0) {
@@ -230,13 +241,25 @@ jobs:
             const today = new Date().toISOString().split('T')[0];
             const issueTitle = `Daily PR Report - ${today}`;
             
-            const { data: existingIssues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'daily-report',
-              per_page: 100
-            });
+            // Get all existing issues with daily-report label with pagination
+            const existingIssues = [];
+            let issuePage = 1;
+            let hasMoreIssues = true;
+            
+            while (hasMoreIssues) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'daily-report',
+                per_page: 100,
+                page: issuePage
+              });
+              
+              existingIssues.push(...issues);
+              hasMoreIssues = issues.length === 100;
+              issuePage++;
+            }
             
             const todayIssue = existingIssues.find(issue => issue.title === issueTitle);
             
