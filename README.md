@@ -84,3 +84,18 @@ El sistema incluye 3 habitaciones precargadas:
 - JUnit 5 para tests
 - Gradle como build tool
 
+## Automatización
+
+### Reporte Diario de Pull Requests
+
+Este repositorio incluye un workflow de GitHub Actions que genera automáticamente un reporte diario de todas las PRs que necesitan atención (sin reviewers o sin aprobar).
+
+- **Ejecución**: Diaria a las 9:00 AM UTC
+- **Reporte**: Se publica como issue en GitHub con la etiqueta `daily-report`
+- **Documentación**: Ver [.github/workflows/README.md](.github/workflows/README.md) para más detalles
+
+El reporte incluye:
+- Estado de cada PR (reviewers asignados, aprobaciones)
+- Resumen del contenido de cada PR
+- Actividad de los revisores (comentarios, aprobaciones, cambios solicitados)
+

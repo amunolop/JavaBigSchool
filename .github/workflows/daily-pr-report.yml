@@ -1,0 +1,262 @@
+name: Daily PR Report
+
+on:
+  schedule:
+    # Runs daily at 9:00 AM UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allows manual trigger
+
+permissions:
+  pull-requests: read
+  contents: read
+  issues: write
+
+jobs:
+  generate-pr-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Generate PR Report
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Get all open pull requests
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            console.log(`Found ${pullRequests.length} open pull requests`);
+            
+            // Filter PRs without reviewers or not approved
+            const prsNeedingAttention = [];
+            
+            for (const pr of pullRequests) {
+              const { data: reviews } = await github.rest.pulls.listReviews({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+              
+              const { data: reviewRequests } = await github.rest.pulls.listRequestedReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+              
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number
+              });
+              
+              const { data: reviewComments } = await github.rest.pulls.listReviewComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+              
+              const approvedReviews = reviews.filter(r => r.state === 'APPROVED');
+              const hasReviewers = reviewRequests.users.length > 0 || reviewRequests.teams.length > 0;
+              const isApproved = approvedReviews.length > 0;
+              
+              // Include PR if it has no reviewers OR is not approved
+              if (!hasReviewers || !isApproved) {
+                // Collect reviewer activity
+                const reviewerActivity = [];
+                
+                // Group reviews by user
+                const reviewsByUser = {};
+                for (const review of reviews) {
+                  const user = review.user.login;
+                  if (!reviewsByUser[user]) {
+                    reviewsByUser[user] = [];
+                  }
+                  reviewsByUser[user].push(review);
+                }
+                
+                // Summarize reviewer activity
+                for (const [user, userReviews] of Object.entries(reviewsByUser)) {
+                  const states = userReviews.map(r => r.state);
+                  const lastReview = userReviews[userReviews.length - 1];
+                  
+                  let activity = `**${user}**:`;
+                  if (states.includes('APPROVED')) {
+                    activity += ' ✅ Approved';
+                  } else if (states.includes('CHANGES_REQUESTED')) {
+                    activity += ' 🔄 Requested changes';
+                  } else if (states.includes('COMMENTED')) {
+                    activity += ' 💬 Commented';
+                  }
+                  
+                  if (lastReview.body) {
+                    activity += ` - "${lastReview.body.substring(0, 100)}${lastReview.body.length > 100 ? '...' : ''}"`;
+                  }
+                  
+                  reviewerActivity.push(activity);
+                }
+                
+                // Add comments activity
+                const commentsByUser = {};
+                for (const comment of comments) {
+                  const user = comment.user.login;
+                  if (user !== pr.user.login) { // Exclude PR author
+                    if (!commentsByUser[user]) {
+                      commentsByUser[user] = 0;
+                    }
+                    commentsByUser[user]++;
+                  }
+                }
+                
+                for (const [user, count] of Object.entries(commentsByUser)) {
+                  if (!reviewsByUser[user]) {
+                    reviewerActivity.push(`**${user}**: 💬 ${count} comment(s)`);
+                  }
+                }
+                
+                // Add review comments activity
+                const reviewCommentsByUser = {};
+                for (const comment of reviewComments) {
+                  const user = comment.user.login;
+                  if (user !== pr.user.login) {
+                    if (!reviewCommentsByUser[user]) {
+                      reviewCommentsByUser[user] = 0;
+                    }
+                    reviewCommentsByUser[user]++;
+                  }
+                }
+                
+                for (const [user, count] of Object.entries(reviewCommentsByUser)) {
+                  if (!reviewsByUser[user] && !commentsByUser[user]) {
+                    reviewerActivity.push(`**${user}**: 💬 ${count} review comment(s)`);
+                  }
+                }
+                
+                prsNeedingAttention.push({
+                  number: pr.number,
+                  title: pr.title,
+                  author: pr.user.login,
+                  url: pr.html_url,
+                  created: pr.created_at,
+                  updated: pr.updated_at,
+                  hasReviewers: hasReviewers,
+                  isApproved: isApproved,
+                  reviewerActivity: reviewerActivity,
+                  body: pr.body || 'No description provided',
+                  labels: pr.labels.map(l => l.name)
+                });
+              }
+            }
+            
+            console.log(`Found ${prsNeedingAttention.length} PRs needing attention`);
+            
+            // Generate report
+            let report = '# 📋 Daily PR Report\n\n';
+            report += `**Generated:** ${new Date().toISOString()}\n\n`;
+            report += `**Total Open PRs:** ${pullRequests.length}\n`;
+            report += `**PRs Needing Attention:** ${prsNeedingAttention.length}\n\n`;
+            report += '---\n\n';
+            
+            if (prsNeedingAttention.length === 0) {
+              report += '✅ All open PRs have reviewers and are approved! Great job! 🎉\n';
+            } else {
+              report += '## PRs Needing Attention\n\n';
+              report += '*These PRs either have no reviewers assigned or have not been approved yet.*\n\n';
+              
+              for (const pr of prsNeedingAttention) {
+                report += `### [#${pr.number} - ${pr.title}](${pr.url})\n\n`;
+                report += `- **Author:** @${pr.author}\n`;
+                report += `- **Created:** ${new Date(pr.created).toLocaleDateString()}\n`;
+                report += `- **Last Updated:** ${new Date(pr.updated).toLocaleDateString()}\n`;
+                report += `- **Status:** ${!pr.hasReviewers ? '⚠️ No reviewers assigned' : ''} ${!pr.isApproved ? '🔍 Not approved' : ''}\n`;
+                
+                if (pr.labels.length > 0) {
+                  report += `- **Labels:** ${pr.labels.join(', ')}\n`;
+                }
+                
+                report += '\n**Summary:**\n';
+                const summary = pr.body.substring(0, 300);
+                report += `${summary}${pr.body.length > 300 ? '...' : ''}\n\n`;
+                
+                if (pr.reviewerActivity.length > 0) {
+                  report += '**Reviewer Activity:**\n';
+                  for (const activity of pr.reviewerActivity) {
+                    report += `- ${activity}\n`;
+                  }
+                } else {
+                  report += '**Reviewer Activity:** ⚠️ No reviewer activity yet\n';
+                }
+                
+                report += '\n---\n\n';
+              }
+            }
+            
+            // Save report to file
+            fs.writeFileSync('pr-report.md', report);
+            console.log('Report generated successfully');
+            
+            // Output report to console
+            console.log('\n' + report);
+            
+            // Set output for use in other steps
+            core.setOutput('report', report);
+            core.setOutput('prs_count', prsNeedingAttention.length);
+      
+      - name: Upload Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-report-${{ github.run_number }}
+          path: pr-report.md
+          retention-days: 90
+      
+      - name: Create Issue with Report
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('pr-report.md', 'utf8');
+            
+            // Check if there's already an open issue for today's report
+            const today = new Date().toISOString().split('T')[0];
+            const issueTitle = `Daily PR Report - ${today}`;
+            
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'daily-report',
+              per_page: 100
+            });
+            
+            const todayIssue = existingIssues.find(issue => issue.title === issueTitle);
+            
+            if (todayIssue) {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: todayIssue.number,
+                body: report
+              });
+              console.log(`Updated existing issue #${todayIssue.number}`);
+            } else {
+              // Create new issue
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: report,
+                labels: ['daily-report', 'automated']
+              });
+              console.log(`Created new issue #${newIssue.number}`);
+            }
