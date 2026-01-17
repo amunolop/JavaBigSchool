@@ -1,6 +1,6 @@
 # Sistema de Reservas de Hotel
 
-Sistema de gestión de reservas de hotel con interfaz de línea de comandos (CLI).
+Sistema de gestión de reservas de hotel con interfaz de líneas  de comandos (CLI).
 
 ## Características
 
