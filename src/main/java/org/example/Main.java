@@ -56,14 +56,17 @@ public class Main {
     }
 
     private static void showMenu() {
-        System.out.println("=== SISTEMA DE RESERVAS DE HOTEL ===");
-        System.out.println("1. Listar habitaciones");
-        System.out.println("2. Crear habitación");
-        System.out.println("3. Calcular precio de reserva");
-        System.out.println("4. Crear reserva");
-        System.out.println("5. Listar reservas");
-        System.out.println("0. Salir");
-        System.out.print("Seleccione una opción: ");
+        System.out.println("╔════════════════════════════════════════╗");
+        System.out.println("║   SISTEMA DE RESERVAS DE HOTEL         ║");
+        System.out.println("╠════════════════════════════════════════╣");
+        System.out.println("║  1. Listar habitaciones                ║");
+        System.out.println("║  2. Crear habitación                   ║");
+        System.out.println("║  3. Calcular precio de reserva         ║");
+        System.out.println("║  4. Crear reserva                      ║");
+        System.out.println("║  5. Listar reservas                    ║");
+        System.out.println("║  0. Salir                              ║");
+        System.out.println("╚════════════════════════════════════════╝");
+        System.out.print("  Seleccione una opción: ");
     }
 
     private static int readOption() {
